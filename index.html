@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> How Do You Know Hopmos </title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background: #f4f6f9; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        h1, h2 { text-align: center; color: #2c3e50; }
+        input, textarea { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+        label { font-weight: bold; color: #34495e; }
+        button { padding: 14px 28px; font-size: 18px; background: #27ae60; color: white; border: none; border-radius: 8px; cursor: pointer; width: 100%; margin-top: 20px; }
+        button:disabled { background: #95a5a6; cursor: not-allowed; opacity: 0.7; }
+        button:hover:not(:disabled) { background: #219653; }
+        video { width: 140px; height: 180px; border: 3px solid #333; border-radius: 12px; position: fixed; top: 10px; right: 10px; z-index: 100; background: black; transform: scaleX(-1); object-fit: cover; }
+        #timer { position: fixed; top: 10px; left: 10px; background: #e74c3c; color: white; padding: 10px 15px; border-radius: 8px; font-size: 20px; font-weight: bold; z-index: 100; }
+        #warning { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(231, 76, 60, 0.97); color: white; font-size: 42px; font-weight: bold; display: flex; align-items: center; justify-content: center; text-align: center; z-index: 200; display: none; flex-direction: column; }
+        .question { margin: 30px 0; padding: 18px; background: #f8f9fa; border-radius: 10px; }
+        .question p { margin: 0 0 15px 0; font-size: 18px; font-weight: bold; }
+        input[type="radio"], input[type="checkbox"] { transform: scale(1.4); margin-right: 12px; width: auto; }
+        
+        /* FIXED: Checkbox & Radio Alignment */
+        .option {
+            display: flex;
+            align-items: center;
+            margin: 12px 0;
+            font-size: 16px;
+        }
+        .option label {
+            font-weight: normal;
+            margin-left: 8px;
+            cursor: pointer;
+            flex: 1;
+        }
+
+        #preExam, #exam, #result { display: none; }
+        #welcome { text-align: center; }
+        .rules { background: #e8f4fc; padding: 15px; border-radius: 10px; margin: 20px 0; text-align: left; border-left: 5px solid #3498db; }
+        .error { color: red; font-size: 14px; display: none; margin-top: 5px; }
+        .score { font-size: 36px; font-weight: bold; color: #27ae60; }
+        .wrong { color: #e74c3c; }
+        #result { text-align: center; padding: 40px; }
+        .final-msg { font-size: 24px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+
+    <!-- NETLIFY FORM (Hidden) -->
+    <form name="exam-submission" method="POST" data-netlify="true" hidden>
+        <input type="hidden" name="form-name" value="exam-submission">
+        <input type="hidden" name="examinee-name">
+        <input type="hidden" name="gmail">
+        <input type="hidden" name="phone">
+        <input type="hidden" name="score-percentage">
+        <input type="hidden" name="correct-count">
+        <input type="hidden" name="wrong-count">
+        <input type="hidden" name="cheating-status">
+        <input type="hidden" name="submission-reason">
+        <textarea name="answers-json" hidden></textarea>
+    </form>
+
+    <div class="container" id="welcome">
+        <h1>How Do You Know Hopmos?</h1>
+        <p><strong>Duration:</strong> 5 Minutes | <strong>Strict Proctoring + Auto Scoring</strong></p>
+
+        <div class="rules">
+            <h3>📢 Important Instructions (Please Read)</h3>
+            <ul>
+                <li>Once you click <strong>Start Exam</strong>, you <strong>cannot</strong> switch tabs, minimize, or open new apps.</li>
+                <li>Your <strong>front camera</strong> will monitor you during the exam.</li>
+                <li><strong>Any violation</strong> = Automatic submission + marked as cheating.</li>
+                <li>Exam auto-submits after <strong>5 minutes</strong>.</li>
+                <li>Use <strong>mobile phone in portrait mode</strong> for best experience.</li>
+                <li>Fill all details correctly — Phone must be 11 digits, Gmail must end with @gmail.com.</li>
+                <li>Results with score (%) shown after submission.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Pre-Exam Form -->
+    <div class="container" id="preExam">
+        <h2>Examinee Registration</h2>
+        <p>Fill all fields to enable Start button.</p>
+
+        <label>Full Name *</label>
+        <input type="text" id="fullName" placeholder="Enter your full name">
+        <div class="error" id="nameError">Name must be at least 3 characters.</div>
+
+        <label>Phone Number *</label>
+        <input type="tel" id="phone" placeholder="e.g. 08012345678 (11 digits)">
+        <div class="error" id="phoneError">Enter exactly 11 digits.</div>
+
+        <label>Gmail Address *</label>
+        <input type="email" id="gmail" placeholder="example@gmail.com">
+        <div class="error" id="gmailError">Must end with @gmail.com</div>
+
+        <button id="startBtn" disabled>Start Exam Now</button>
+    </div>
+
+    <!-- Exam Screen -->
+    <div class="container" id="exam">
+        <div id="timer">05:00</div>
+        <video id="webcam" autoplay playsinline muted></video>
+        <div id="warning">
+            <div>CHEATING DETECTED!<br><br>Submitting now...</div>
+        </div>
+
+        <h2>5-Minute Exam</h2>
+        <p><strong>Examinee:</strong> <span id="examineeName"></span> | Gmail: <span id="examineeGmail"></span></p>
+
+        <div class="question">
+            <p><strong>1.</strong>What is my favorite color?</p>
+            <div class="option"><input type="radio" name="q1" value="a" id="q1a"><label for="q1a">A) Red</label></div>
+            <div class="option"><input type="radio" name="q1" value="b" id="q1b"><label for="q1b">B) Blue</label></div>
+            <div class="option"><input type="radio" name="q1" value="c" id="q1c"><label for="q1c">C) Black</label></div>
+        </div>
+
+        <div class="question">
+            <p><strong>2.</strong>In which State was I born? </p>
+            <input type="text" id="q2" placeholder="Your answer">
+        </div>
+
+        <div class="question">
+            <p><strong>3.</strong>What hobby do I enjoy most in my free time?(Select all)</p>
+            <div class="option"><input type="checkbox" name="q3" value="Drawing" id="q3drawing"><label for="q3drawing">Drawing</label></div>
+            <div class="option"><input type="checkbox" name="q3" value="Reading" id="q3reading"><label for="q3reading">Reading</label></div>
+            <div class="option"><input type="checkbox" name="q3" value="Watching Movies" id="q3watching movies"><label for="q3watching movies">Watching Movies</label></div>
+            <div class="option"><input type="checkbox" name="q3" value="Sleeping" id="q3sleeping"><label for="sleeping">Sleeping</label></div>
+        </div>
+
+        <div class="question">
+            <p><strong>4.</strong>What pet would I most likely own (or already do)?</p>
+            <input type="text" id="q4" placeholder="Name">
+        </div>
+
+        <div class="question">
+            <p><strong>5.</strong> 100 + 250 = ?</p>
+            <input type="text" id="q5" placeholder="Answer">
+        </div>
+
+        <div class="question">
+            <p><strong>6.</strong> Largest ocean?</p>
+            <div class="option"><input type="radio" name="q6" value="a" id="q6a"><label for="q6a">A) Atlantic</label></div>
+            <div class="option"><input type="radio" name="q6" value="b" id="q6b"><label for="q6b">B) Pacific</label></div>
+            <div class="option"><input type="radio" name="q6" value="c" id="q6c"><label for="q6c">C) Indian</label></div>
+        </div>
+
+        <div class="question">
+            <p><strong>7.</strong> Pc stands for?</p>
+            <input type="text" id="q7" placeholder="Full form">
+        </div>
+
+        <div class="question">
+            <p><strong>8.</strong> 2 + 2 × 2 = ?</p>
+            <input type="text" id="q8" placeholder="Answer">
+        </div>
+
+        <div class="question">
+            <p><strong>9.</strong> Color of sky on clear day?</p>
+            <input type="text" id="q9" placeholder="Color">
+        </div>
+
+        <div class="question">
+            <p><strong>10.</strong> The word "HOPMOS" is coined out from which word?</p>
+            <textarea id="q10" rows="3" placeholder="Short answer"></textarea>
+        </div>
+
+        <button id="submitBtn">Submit Exam Now</button>
+    </div>
+
+    <!-- Result Screen -->
+    <div class="container" id="result">
+        <h2>Exam Submitted!</h2>
+        <div class="final-msg" id="finalMsg"></div>
+        <div class="score" id="percentage"></div>
+        <p><strong>Correct Answers:</strong> <span id="correctCount"></span></p>
+        <p><strong>Wrong / Skipped:</strong> <span class="wrong" id="wrongCount"></span></p>
+        <p><strong>Examinee:</strong> <span id="resultName"></span></p>
+        <p><strong>Gmail:</strong> <span id="resultGmail"></span></p>
+        <br><br>
+        <button onclick="location.reload()">Take Exam Again</button>
+    </div>
+
+    <script>
+        // EDIT CORRECT ANSWERS HERE
+        const correctAnswers = {
+            q1: "a",
+            q2: "Akwa Ibom",
+            q3: ["Drawing", "Watching Movies"],
+            q4: "Cat",
+            q5: "350",
+            q6: "b",
+            q7: "Personal Computer",
+            q8: "6",
+            q9: "blue",
+            q10: "Hope Moses"
+        };
+
+        const totalQuestions = Object.keys(correctAnswers).length;
+
+        // Elements (unchanged)
+        const welcome = document.getElementById('welcome');
+        const preExam = document.getElementById('preExam');
+        const exam = document.getElementById('exam');
+        const result = document.getElementById('result');
+        const startBtn = document.getElementById('startBtn');
+        const fullName = document.getElementById('fullName');
+        const phone = document.getElementById('phone');
+        const gmail = document.getElementById('gmail');
+        const nameError = document.getElementById('nameError');
+        const phoneError = document.getElementById('phoneError');
+        const gmailError = document.getElementById('gmailError');
+        const examineeName = document.getElementById('examineeName');
+        const examineeGmail = document.getElementById('examineeGmail');
+        const resultName = document.getElementById('resultName');
+        const resultGmail = document.getElementById('resultGmail');
+        const webcam = document.getElementById('webcam');
+        const timerDisplay = document.getElementById('timer');
+        const warning = document.getElementById('warning');
+        const submitBtn = document.getElementById('submitBtn');
+
+        let stream = null;
+        let timerInterval = null;
+        let timeLeft = 5 * 60;
+        let hasCheated = false;
+        let examineeData = {};
+
+        welcome.style.display = 'block';
+        preExam.style.display = 'block';
+
+        function validateForm() {
+            const nameVal = fullName.value.trim();
+            const phoneVal = phone.value.trim();
+            const gmailVal = gmail.value.trim().toLowerCase();
+
+            const nameValid = nameVal.length >= 3;
+            const phoneValid = /^\d{11}$/.test(phoneVal);
+            const gmailValid = gmailVal.endsWith('@gmail.com') && gmailVal.length > 10;
+
+            nameError.style.display = nameValid ? 'none' : 'block';
+            phoneError.style.display = phoneValid ? 'none' : 'block';
+            gmailError.style.display = gmailValid ? 'none' : 'block';
+
+            startBtn.disabled = !(nameValid && phoneValid && gmailValid);
+        }
+
+        fullName.addEventListener('input', validateForm);
+        phone.addEventListener('input', validateForm);
+        gmail.addEventListener('input', validateForm);
+        validateForm();
+
+        async function startWebcam() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "user" },
+                    audio: false
+                });
+                webcam.srcObject = stream;
+            } catch (err) {
+                alert('Camera access denied.');
+            }
+        }
+
+        function enterFullscreen() {
+            const el = document.documentElement;
+            if (el.requestFullscreen) el.requestFullscreen();
+            else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+            else if (el.msRequestFullscreen) el.msRequestFullscreen();
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const secs = (seconds % 60).toString().padStart(2, '0');
+            return `${mins}:${secs}`;
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerDisplay.textContent = formatTime(timeLeft);
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    submitExam('Time Up!');
+                }
+            }, 1000);
+        }
+
+        function handleCheat() {
+            if (hasCheated) return;
+            hasCheated = true;
+            warning.style.display = 'flex';
+            setTimeout(() => submitExam('Cheating Detected!'), 2000);
+        }
+
+        function collectAnswers() {
+            const answers = {};
+            ['q1', 'q6'].forEach(q => {
+                const selected = document.querySelector(`input[name="${q}"]:checked`);
+                answers[q] = selected ? selected.value : "skipped";
+            });
+            ['q2', 'q4', 'q5', 'q7', 'q8', 'q9'].forEach(q => {
+                answers[q] = document.getElementById(q).value.trim() || "skipped";
+            });
+            answers.q10 = document.getElementById('q10').value.trim() || "skipped";
+            const q3 = Array.from(document.querySelectorAll('input[name="q3"]:checked')).map(c => c.value);
+            answers.q3 = q3.length > 0 ? q3 : ["skipped"];
+            return answers;
+        }
+
+        function calculateScore() {
+            let correct = 0;
+            ['q1', 'q6'].forEach(q => {
+                const selected = document.querySelector(`input[name="${q}"]:checked`);
+                if (selected && selected.value === correctAnswers[q]) correct++;
+            });
+            ['q2', 'q4', 'q5', 'q7', 'q8', 'q9', 'q10'].forEach(q => {
+                const ans = document.getElementById(q).value.trim();
+                if (ans.toLowerCase() === correctAnswers[q].toString().toLowerCase()) correct++;
+            });
+            const q3checks = Array.from(document.querySelectorAll('input[name="q3"]:checked')).map(c => c.value);
+            const correctq3 = correctAnswers.q3;
+            if (q3checks.length === correctq3.length && q3checks.every(v => correctq3.includes(v))) correct++;
+            const wrong = totalQuestions - correct;
+            const percentage = Math.round((correct / totalQuestions) * 100);
+            return { correct, wrong, percentage };
+        }
+
+        function submitToNetlify(data) {
+            const form = document.querySelector('form[name="exam-submission"]');
+            form.querySelector('[name="examinee-name"]').value = data.name;
+            form.querySelector('[name="gmail"]').value = data.gmail;
+            form.querySelector('[name="phone"]').value = data.phone;
+            form.querySelector('[name="score-percentage"]').value = data.percentage;
+            form.querySelector('[name="correct-count"]').value = data.correct;
+            form.querySelector('[name="wrong-count"]').value = data.wrong;
+            form.querySelector('[name="cheating-status"]').value = data.cheated ? "Yes" : "No";
+            form.querySelector('[name="submission-reason"]').value = data.reason;
+            form.querySelector('[name="answers-json"]').value = JSON.stringify(data.answers);
+
+            fetch('/', {
+                method: 'POST',
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: new URLSearchParams(new FormData(form)).toString()
+            }).catch(err => console.log("Netlify submit error:", err));
+        }
+
+        function submitExam(reason) {
+            if (stream) stream.getTracks().forEach(t => t.stop());
+            clearInterval(timerInterval);
+            localStorage.removeItem('examActive');
+
+            const answers = collectAnswers();
+            const score = calculateScore();
+            const status = hasCheated ? 'Failed (Cheating Detected)' : 'Completed';
+            const msg = hasCheated ? 'Cheating detected during exam.' : reason;
+
+            submitToNetlify({
+                name: examineeData.name,
+                gmail: examineeData.gmail,
+                phone: examineeData.phone || "Not provided",
+                percentage: score.percentage,
+                correct: score.correct,
+                wrong: score.wrong,
+                cheated: hasCheated,
+                reason: reason,
+                answers: answers
+            });
+
+            exam.style.display = 'none';
+            result.style.display = 'block';
+
+            document.getElementById('finalMsg').innerHTML = `<strong>${status}</strong><br>${msg}`;
+            document.getElementById('percentage').textContent = `${score.percentage}%`;
+            document.getElementById('correctCount').textContent = `${score.correct} / ${totalQuestions}`;
+            document.getElementById('wrongCount').textContent = `${score.wrong}`;
+            resultName.textContent = examineeData.name;
+            resultGmail.textContent = examineeData.gmail;
+        }
+
+        startBtn.onclick = () => {
+            examineeData = {
+                name: fullName.value.trim(),
+                gmail: gmail.value.trim(),
+                phone: phone.value.trim()
+            };
+
+            examineeName.textContent = examineeData.name;
+            examineeGmail.textContent = examineeData.gmail;
+
+            welcome.style.display = 'none';
+            preExam.style.display = 'none';
+            exam.style.display = 'block';
+
+            startWebcam();
+            enterFullscreen();
+            startTimer();
+            timerDisplay.textContent = formatTime(timeLeft);
+            localStorage.setItem('examActive', 'true');
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'hidden') handleCheat();
+            });
+            window.addEventListener('blur', handleCheat);
+            document.addEventListener('fullscreenchange', () => {
+                if (!document.fullscreenElement) handleCheat();
+            });
+
+            window.addEventListener('beforeunload', () => {
+                if (stream) stream.getTracks().forEach(t => t.stop());
+                localStorage.removeItem('examActive');
+            });
+        };
+
+        submitBtn.onclick = () => submitExam('Submitted on Time');
+    </script>
+</body>
+</html>
